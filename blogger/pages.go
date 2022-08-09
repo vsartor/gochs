@@ -16,6 +16,21 @@ import (
 var (
 	cachePageSpecs  map[string]*pageSpec
 	cacheGlobalVars map[string]string
+
+	monthName = map[string]string{
+		"01": "January",
+		"02": "February",
+		"03": "March",
+		"04": "April",
+		"05": "May",
+		"06": "June",
+		"07": "July",
+		"08": "August",
+		"09": "September",
+		"10": "October",
+		"11": "November",
+		"12": "December",
+	}
 )
 
 type pageSpec struct {
@@ -129,16 +144,34 @@ func applyPostVars(content string, spec pageSpec) string {
 	content = applyVars(content, spec.variables)
 	content = strings.ReplaceAll(content, "#{post-title}", spec.title)
 	content = strings.ReplaceAll(content, "#{post-author}", spec.author)
-	content = strings.ReplaceAll(content, "#{post-date}", spec.date)
+	content = strings.ReplaceAll(content, "#{post-content}", spec.content)
+	content = strings.ReplaceAll(content, "#{post-preview}", spec.preview)
+	content = strings.ReplaceAll(content, "#{post-line}", spec.line)
+
+	// Special handling of #{post-url} depending on whether it has a group
 	if spec.group == "" {
 		content = strings.ReplaceAll(content, "#{post-url}", spec.url)
 	} else {
 		content = strings.ReplaceAll(content, "#{post-url}", spec.group+"/"+spec.url)
 	}
 
-	content = strings.ReplaceAll(content, "#{post-content}", spec.content)
-	content = strings.ReplaceAll(content, "#{post-preview}", spec.preview)
-	content = strings.ReplaceAll(content, "#{post-line}", spec.line)
+	// Special handling of date to use a prettier format for applying
+	fields := strings.Split(spec.date, "-")
+	// TODO: Make sure at some point we error-handle this stuff
+	year := fields[0]
+	month := fields[1]
+	day := fields[2]
+	suffix := "th"
+	if day == "01" || day == "21" || day == "31" {
+		suffix = "st"
+	} else if day == "02" || day == "22" {
+		suffix = "nd"
+	} else if day == "03" || day == "23" {
+		suffix = "rd"
+	}
+	pretty := monthName[month] + " " + day + suffix + ", " + year
+
+	content = strings.ReplaceAll(content, "#{post-date}", pretty)
 
 	return content
 }
