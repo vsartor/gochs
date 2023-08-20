@@ -236,6 +236,7 @@ func expandLists(content string, srcDir string) (string, error) {
 	if err != nil {
 		panic("regexp match should assure this error does not happen")
 	}
+	log.Dbg("Starting to parse list with %d repetitions for '%s'", nReps, group)
 
 	end := rEnd.FindIndex(bContent)
 	if end == nil {
@@ -263,6 +264,8 @@ func expandLists(content string, srcDir string) (string, error) {
 			groupSpecs = append(groupSpecs, spec)
 		}
 	}
+	log.Dbg("Found %d matching posts for '%s' list", len(groupSpecs), group)
+
 	// because we want decreasing order, we switch up usual order of comparison in the "less" func
 	sort.Slice(groupSpecs, func(i, j int) bool { return groupSpecs[i].date > groupSpecs[j].date })
 	if nReps < len(groupSpecs) {
@@ -297,6 +300,13 @@ func parsePageSpecs(file *os.File, srcDir string) (map[string]*pageSpec, error) 
 		// handle context switching (starting new page/parsing variables)
 		if line[0] == '[' {
 			currentPage = line[1 : len(line)-1]
+
+			// check if we're redefining a page and error out if it's the case
+			_, ok := specs[currentPage]
+			if ok {
+				log.Fatal("Redefining page spec for '%s'", currentPage)
+			}
+
 			log.Dbg("Parsing spec for <b>%s<r>", currentPage)
 			specs[currentPage] = &pageSpec{}
 			specs[currentPage].variables = make(map[string]string)
