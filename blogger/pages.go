@@ -95,16 +95,19 @@ func loadPage(srcDir, name string, spec pageSpec, prod bool) (page, error) {
 		return page{}, err
 	}
 
-	// Apply post vars until all are filled (e.g. we want to allow "post-content" to include "post-date" macros
-	// We also include a max-depth to avoid infinite loops in case some variables simply don't exist
-	maxCount := 10
-	applyCount := 0
-	r := regexp.MustCompile(`#{[a-zA-Z-]+}`)
-	for r.Match([]byte(content)) {
-		applyCount++
-		content = applyPostVars(content, spec)
-		if applyCount == maxCount {
-			break
+	// Only apply post vars for post variables (defined here implicitly by having a date)
+	if spec.date != "" {
+		// Apply post vars until all are filled (e.g. we want to allow "post-content" to include "post-date" macros
+		// We also include a max-depth to avoid infinite loops in case some variables simply don't exist
+		maxCount := 10
+		applyCount := 0
+		r := regexp.MustCompile(`#{[a-zA-Z-]+}`)
+		for r.Match([]byte(content)) {
+			applyCount++
+			content = applyPostVars(content, spec)
+			if applyCount == maxCount {
+				break
+			}
 		}
 	}
 
@@ -155,6 +158,11 @@ func applyPostVars(content string, spec pageSpec) string {
 	content = strings.ReplaceAll(content, "#{post-content}", spec.content)
 	content = strings.ReplaceAll(content, "#{post-preview}", spec.preview)
 	content = strings.ReplaceAll(content, "#{post-line}", spec.line)
+	if spec.group != "" {
+		content = strings.ReplaceAll(content, "#{post-group}", spec.group[:len(spec.group)-1])
+	} else {
+		content = strings.ReplaceAll(content, "#{post-group}", "")
+	}
 
 	// Special handling of #{post-url} depending on whether it has a group
 	if spec.group == "" {
@@ -165,7 +173,9 @@ func applyPostVars(content string, spec pageSpec) string {
 
 	// Special handling of date to use a prettier format for applying
 	fields := strings.Split(spec.date, "-")
-	// TODO: Make sure at some point we error-handle this stuff
+	if len(fields) != 3 {
+		panic("invalid date format for post: " + spec.date + " (expected YYYY-MM-DD) in " + spec.url)
+	}
 	year := fields[0]
 	month := fields[1]
 	day := fields[2]
@@ -260,7 +270,7 @@ func expandLists(content string, srcDir string) (string, error) {
 	}
 	groupSpecs := make([]*pageSpec, 0, len(allSpecs))
 	for _, spec := range allSpecs {
-		if spec.group == group {
+		if spec.group == group || (group == "all" && spec.group != "" ) {
 			groupSpecs = append(groupSpecs, spec)
 		}
 	}
