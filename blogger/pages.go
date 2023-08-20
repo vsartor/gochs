@@ -177,7 +177,7 @@ func applyPostVars(content string, spec pageSpec) string {
 	} else if day == "03" || day == "23" {
 		suffix = "rd"
 	}
-	pretty := monthName[month] + " " + day + suffix + ", " + year
+	pretty := monthName[month] + " " + day + "<sup>" + suffix + "</sup>, " + year
 
 	content = strings.ReplaceAll(content, "#{post-date}", pretty)
 
