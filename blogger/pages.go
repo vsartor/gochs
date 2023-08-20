@@ -72,6 +72,7 @@ func buildPages(srcDir, dstDir string, prod bool) error {
 			return err
 		}
 
+		log.Info("Writting page <b>%s<r>", name)
 		err = ioutil.WriteFile(dstDir+"/"+page.url, []byte(page.content), os.ModePerm)
 		if err != nil {
 			return log.Err("failed to write <b>%s<r>: %s", name, err.Error())
@@ -95,9 +96,16 @@ func loadPage(srcDir, name string, spec pageSpec, prod bool) (page, error) {
 	}
 
 	// Apply post vars until all are filled (e.g. we want to allow "post-content" to include "post-date" macros
+	// We also include a max-depth to avoid infinite loops in case some variables simply don't exist
+	maxCount := 10
+	applyCount := 0
 	r := regexp.MustCompile(`#{[a-zA-Z-]+}`)
 	for r.Match([]byte(content)) {
+		applyCount++
 		content = applyPostVars(content, spec)
+		if applyCount == maxCount {
+			break
+		}
 	}
 
 	content, err = applyGlobalVars(content, srcDir, prod)
@@ -107,7 +115,7 @@ func loadPage(srcDir, name string, spec pageSpec, prod bool) (page, error) {
 
 	err = checkUnfilledVars(content)
 	if err != nil {
-		return page{}, log.Err("unfilled variables in <b>%s<r>: %s", name, err.Error())
+		log.Warn("unfilled variables in <b>%s<r>: %s", name, err.Error())
 	}
 
 	return page{url: spec.group + "/" + spec.url, content: content}, nil
@@ -396,6 +404,7 @@ func readMarkdown(filepath string) (string, error) {
 		return "", log.Err("Failed to read md file <b>%s<r>", filepath)
 	}
 
+	log.Dbg("Converting <b>%s<r> to HTML", filepath)
 	htmlContent := markdown.ToHTML(mdContent, nil, nil)
 	return string(htmlContent), nil
 }
